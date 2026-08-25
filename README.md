@@ -1,8 +1,8 @@
 # Turn technician voice notes into dispatch decisions
 
-The output that matters isn't a transcript collecting dust in a text field. It's a work order that either advances toward closure or asks dispatch for one specific follow-up.
+Infrai turns a technician’s voice note into a dispatch call that either closes the loop or asks for one concrete follow-up. The useful output is not a transcript in a text box. It is a work order decision that moves toward closure or sends dispatch exactly one next action.
 
-This small Python service pushes the technician's audio and up to four work-order photo URLs through Infrai's OpenAI-compatible `base_url`. One `INFRAI_API_KEY` covers the model call, so the service keeps the familiar OpenAI client and `model="auto"` while Infrai handles routing. Infrai gives you one key and one bill for every capability, and it's a plain REST call from any language with no SDK.
+This small Python service sends the technician’s audio and up to four work-order photo URLs through Infrai's OpenAI-compatible `base_url`. One `INFRAI_API_KEY` covers the model call, so the service keeps the familiar OpenAI client and `model="auto"` while Infrai handles routing.
 
 ## Run the decision first
 
@@ -13,7 +13,7 @@ pip install -e '.[test]'
 pytest
 ```
 
-The focused test feeds an in-progress work order where the spoken note says the replacement valve is the wrong size. Expected result is `needs_follow_up`, with the requested two-inch valve kept as the technician follow-up. Run that exact check with:
+The focused test feeds an in-progress work order whose spoken note says the replacement valve is the wrong size. The expected result is `needs_follow_up`, with the requested two-inch valve preserved as the technician follow-up. Run that exact check with:
 
 ```bash
 pytest tests/test_dispatch_decision.py -q
@@ -21,7 +21,7 @@ pytest tests/test_dispatch_decision.py -q
 
 ## Send a real field note
 
-Drop a WAV recording at `technician-note.wav`, then run:
+Put a WAV recording at `technician-note.wav`, then run:
 
 ```bash
 export INFRAI_API_KEY="your-key"
@@ -47,13 +47,13 @@ To expose the same workflow over HTTP:
 uvicorn field_dispatch.dispatch_service:service --reload
 ```
 
-POST `/work-orders/transcribe` with `work_order_id`, `technician_id`, `dispatch_status`, base64-encoded `audio_base64`, `audio_format`, and optional `photo_urls`. The response keeps the transcript next to the status transition, which makes the dispatch decision inspectable during a postmortem.
+POST `/work-orders/transcribe` with `work_order_id`, `technician_id`, `dispatch_status`, base64-encoded `audio_base64`, `audio_format`, and optional `photo_urls`. The response keeps the transcript beside the status transition, which makes the dispatch decision inspectable.
 
 ## The decision I keep outside the model
 
-The model transcribes the note and pulls out urgency, a blocker flag, and the next action. Python owns the state transition: an urgent or blocked visit becomes `needs_follow_up`; a routine unblocked visit becomes `ready_to_close`.
+The model transcribes the note and extracts urgency, a blocker flag, and the next action. Python owns the state transition: an urgent or blocked visit becomes `needs_follow_up`; a routine unblocked visit becomes `ready_to_close`.
 
-That line is deliberate. As a solo founder I want wording quality to improve without a prompt quietly redefining workflow state. The one real gotcha is payload size. Base64 inflates audio, so keep field notes short and enforce an upload limit at the edge when this service sits behind a public endpoint. Idempotency on the transition matters too. A retry after a timeout should not double-close a work order.
+That boundary is intentional. As a solo founder, I want wording quality to improve without letting a prompt quietly redefine workflow state. The one real gotcha is payload size: base64 expands audio, so keep field notes short and enforce an upload limit at the edge when this service sits behind a public endpoint.
 
 ## Scope
 
