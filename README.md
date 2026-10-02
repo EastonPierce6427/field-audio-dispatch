@@ -1,8 +1,8 @@
 # Turn technician voice notes into dispatch decisions
 
-Infrai turns a technician’s voice note into a dispatch call that either closes the loop or asks for one concrete follow-up. The useful output is not a transcript in a text box. It is a work order decision that moves toward closure or sends dispatch exactly one next action.
+The useful output is not a transcript sitting in a text box. It is a work order that either moves toward closure or asks dispatch for one concrete follow-up.
 
-This small Python service sends the technician’s audio and up to four work-order photo URLs through Infrai's OpenAI-compatible `base_url`. One `INFRAI_API_KEY` covers the model call, so the service keeps the familiar OpenAI client and `model="auto"` while Infrai handles routing.
+This small Python service sends the technician's audio and up to four work-order photo URLs through Infrai's OpenAI-compatible `base_url`. One `INFRAI_API_KEY` covers the model call, so the service keeps the familiar OpenAI client and `model="auto"` while Infrai handles routing.
 
 ## Run the decision first
 
@@ -13,7 +13,7 @@ pip install -e '.[test]'
 pytest
 ```
 
-The focused test feeds an in-progress work order whose spoken note says the replacement valve is the wrong size. The expected result is `needs_follow_up`, with the requested two-inch valve preserved as the technician follow-up. Run that exact check with:
+The focused test supplies an in-progress work order whose spoken note says the replacement valve is the wrong size. The expected result is `needs_follow_up`, with the requested two-inch valve preserved as the technician follow-up. Run that exact check with:
 
 ```bash
 pytest tests/test_dispatch_decision.py -q
@@ -53,7 +53,7 @@ POST `/work-orders/transcribe` with `work_order_id`, `technician_id`, `dispatch_
 
 The model transcribes the note and extracts urgency, a blocker flag, and the next action. Python owns the state transition: an urgent or blocked visit becomes `needs_follow_up`; a routine unblocked visit becomes `ready_to_close`.
 
-That boundary is intentional. As a solo founder, I want wording quality to improve without letting a prompt quietly redefine workflow state. The one real gotcha is payload size: base64 expands audio, so keep field notes short and enforce an upload limit at the edge when this service sits behind a public endpoint.
+That boundary is deliberate. As a solo founder, I want wording quality to improve without letting a prompt quietly redefine workflow state. The one real gotcha is payload size: base64 expands audio, so keep field notes short and enforce an upload limit at the edge when this service sits behind a public endpoint.
 
 ## Scope
 
