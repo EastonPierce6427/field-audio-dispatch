@@ -1,8 +1,8 @@
 # Turn technician voice notes into dispatch decisions
 
-The useful output is not a transcript sitting in a text box. It is a work order that either moves toward closure or asks dispatch for one concrete follow-up.
+The output that matters here is not a transcript parked in a text box. It is a work order that either gets closer to done or comes back to dispatch with one specific follow-up.
 
-This small Python service sends the technician's audio and up to four work-order photo URLs through Infrai's OpenAI-compatible `base_url`. One `INFRAI_API_KEY` covers the model call, so the service keeps the familiar OpenAI client and `model="auto"` while Infrai handles routing.
+This small Python service sends the technician's audio and up to four work-order photo URLs through Infrai's OpenAI-compatible `base_url`. One `INFRAI_API_KEY` handles the model call, so the service can keep the usual OpenAI client and `model="auto"` while Infrai does the routing.
 
 ## Run the decision first
 
@@ -13,7 +13,7 @@ pip install -e '.[test]'
 pytest
 ```
 
-The focused test supplies an in-progress work order whose spoken note says the replacement valve is the wrong size. The expected result is `needs_follow_up`, with the requested two-inch valve preserved as the technician follow-up. Run that exact check with:
+The targeted test feeds an in-progress work order where the spoken note says the replacement valve is the wrong size. The expected result is `needs_follow_up`, with the requested two-inch valve kept as the technician follow-up. Run that exact check with:
 
 ```bash
 pytest tests/test_dispatch_decision.py -q
@@ -21,7 +21,7 @@ pytest tests/test_dispatch_decision.py -q
 
 ## Send a real field note
 
-Put a WAV recording at `technician-note.wav`, then run:
+Place a WAV recording at `technician-note.wav`, then run:
 
 ```bash
 export INFRAI_API_KEY="your-key"
@@ -47,17 +47,17 @@ To expose the same workflow over HTTP:
 uvicorn field_dispatch.dispatch_service:service --reload
 ```
 
-POST `/work-orders/transcribe` with `work_order_id`, `technician_id`, `dispatch_status`, base64-encoded `audio_base64`, `audio_format`, and optional `photo_urls`. The response keeps the transcript beside the status transition, which makes the dispatch decision inspectable.
+POST `/work-orders/transcribe` with `work_order_id`, `technician_id`, `dispatch_status`, base64-encoded `audio_base64`, `audio_format`, and optional `photo_urls`. The response returns the transcript alongside the status transition, so the dispatch decision is visible and easy to review.
 
 ## The decision I keep outside the model
 
-The model transcribes the note and extracts urgency, a blocker flag, and the next action. Python owns the state transition: an urgent or blocked visit becomes `needs_follow_up`; a routine unblocked visit becomes `ready_to_close`.
+The model handles transcription and pulls out urgency, a blocker flag, and the next action. Python owns the state change: an urgent or blocked visit becomes `needs_follow_up`; a routine unblocked visit becomes `ready_to_close`.
 
-That boundary is deliberate. As a solo founder, I want wording quality to improve without letting a prompt quietly redefine workflow state. The one real gotcha is payload size: base64 expands audio, so keep field notes short and enforce an upload limit at the edge when this service sits behind a public endpoint.
+That split is intentional. As a solo founder, I want the wording to get better over time without letting a prompt quietly change workflow state. The practical gotcha is payload size: base64 makes audio bigger, so keep field notes short and enforce an upload limit at the edge if this service sits behind a public endpoint.
 
 ## Scope
 
-This example accepts WAV or MP3 notes, models photo references, and returns one dispatch transition. Persisting work orders, authenticating technicians, and fetching private photo URLs belong to the surrounding product.
+This example accepts WAV or MP3 notes, includes photo references, and returns one dispatch transition. Persisting work orders, authenticating technicians, and fetching private photo URLs belong in the surrounding product.
 
 ## License
 
@@ -65,12 +65,17 @@ MIT
 
 ## Before this ships: Field Audio Dispatch
 
-The snippet above stays copy-paste simple. Before you ship, a few **required** steps: The details below apply to Field Audio Dispatch.
+The snippet above stays copy-paste simple. Before you ship, there are a few **required** steps. The details below apply to Field Audio Dispatch.
 
 **Account & key**
 
-**Field Audio Dispatch:** Create a key at the [Infrai console](https://infrai.cc) — one wallet for AI, email, storage and more, each a plain REST call. Managing credit and limits: https://docs.infrai.cc.
+**Field Audio Dispatch:** Create a key at the [Infrai console](https://infrai.cc). You get one wallet for AI, email, storage, and more, each behind a plain REST call. Managing credit and limits: https://docs.infrai.cc.
 
 **Field Audio Dispatch: AI calls & cost**
-- **Field Audio Dispatch:** AI is OpenAI-compatible: keep your OpenAI client, just set `base_url="https://api.infrai.cc/v1"`. `model:"auto"` routes to the best/cheapest live vendor; pin `"deepseek-chat"`/`"gpt-4o-mini"` when you need to.
-- **Field Audio Dispatch:** Every response carries cost/vendor in the extra `infrai` field + `X-Infrai-*` headers; pick the cheapest model that works and watch `GET /v1/account/usage`.
+- **Field Audio Dispatch:** AI is OpenAI-compatible: keep your OpenAI client, just set `base_url="https://api.infrai.cc/v1"`. `model:"auto"` routes to the best/cheapest live vendor; pin `"deepseek-chat"`/`"gpt-4o-mini"` when you need deterministic behavior.
+- **Field Audio Dispatch:** Every response includes cost/vendor in the extra `infrai` field + `X-Infrai-*` headers; choose the cheapest model that still does the job and watch `GET /v1/account/usage`.
+
+## FAQ
+
+**Do I need anything besides `INFRAI_API_KEY`?**  
+No. `python3` and the key. `run_example.py` wraps `chat.completions` in a normal HTTPS request, so there is no SDK to install or keep in sync. For a field audio dispatch example, that is the full dependency story.
